@@ -7,7 +7,7 @@ This repository contains my extracurricular learning materials
 1. [CS50p](#cs50p)
 2. [DL-AndrewNg](#dl-andrewng)
 3. [ML-4360](#ml-4360)
-4. [EECS 498.008 / 598.008](#EECS 498.008 / 598.008)
+4. [EECS 498.008 / 598.008](#EECS-498.008/598.00)
 
 ## CS50p
 
@@ -30,7 +30,7 @@ The ML-4360 folder contains materials, notes, and projects from the course ML-43
 
 * course site : https://uni-tuebingen.de/fakultaeten/mathematisch-naturwissenschaftliche-fakultaet/fachbereiche/informatik/lehrstuehle/autonomous-vision/lectures/computer-vision/
 
-## EECS 498.008 / 598.00
+## EECS-498.008/598.00
 
 The CVDL folder contains  slides and assignments from the course `EECS 498.008 / 598.00`
 
