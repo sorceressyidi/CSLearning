@@ -533,7 +533,9 @@ def batched_matrix_multiply_loop(x: Tensor, y: Tensor) -> Tensor:
     #                      TODO: Implement this function                      #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+    B,N,M = x.shape
+    B,M,P = y.shape
+    z = torch.stack([x[i].mm(y[i]) for i in range(B)])
     ###########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
@@ -564,7 +566,7 @@ def batched_matrix_multiply_noloop(x: Tensor, y: Tensor) -> Tensor:
     #                      TODO: Implement this function                      #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
+    z = torch.bmm(x,y)
     ###########################################################################
     #                            END OF YOUR CODE                             #
     ###########################################################################
@@ -599,7 +601,11 @@ def normalize_columns(x: Tensor) -> Tensor:
     #                      TODO: Implement this function                     #
     ##########################################################################
     # Replace "pass" statement with your code
-    pass
+    mean = torch.mean(x,dim=0)
+    print(mean)
+    std = torch.std(x,dim=0)
+    print(std)
+    y = (x-mean)/std
     ##########################################################################
     #                            END OF YOUR CODE                            #
     ##########################################################################
