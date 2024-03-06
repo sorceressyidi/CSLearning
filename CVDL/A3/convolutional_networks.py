@@ -51,7 +51,7 @@ class Conv(object):
         # You are NOT allowed to use anything in torch.nn in other places. #
         ####################################################################
         # Replace "pass" statement with your code
-        pass
+        
         #####################################################################
         #                          END OF YOUR CODE                         #
         #####################################################################

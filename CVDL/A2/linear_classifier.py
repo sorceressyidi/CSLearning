@@ -20,7 +20,7 @@ def hello_linear_classifier():
 # Template class modules that we will use later: Do not edit/modify this class
 class LinearClassifier:
     """An abstarct class for the linear classifiers"""
-
+ 
     # Note: We will re-use `LinearClassifier' in both SVM and Softmax
     def __init__(self):
         random.seed(0)
@@ -226,11 +226,12 @@ def svm_loss_vectorized(
     #############################################################################
     # Replace "pass" statement with your code
     scores = X.mm(W)
-    correct_label_score = scores[torch.arange[X.shape[0]],y]
+    correct_label_score = scores[torch.arange(X.shape[0]),y]
     zero = torch.zeros_like(scores)
-    Loss_M = torch.max(0,scores - correct_label_score.view(X.shape[0],1)+1)
-    Loss_M[torch.arrange[X.shape[0],y]]= 0
+    Loss_M = torch.max(zero,scores - correct_label_score.view(X.shape[0],1)+1)
+    Loss_M[torch.arange(X.shape[0]),y]= 0
     loss = torch.mean(torch.sum(Loss_M,dim=1)) + reg*torch.sum(W*W)
+
     #############################################################################
     #                             END OF YOUR CODE                              #
     #############################################################################
@@ -249,7 +250,7 @@ def svm_loss_vectorized(
     dL_y[Loss_M>0] = 1
     num = torch.sum(dL_y,dim = 1)
     dL_y[torch.arange(X.shape[0]),y] = -num 
-    dW = X.T().mm(dL_y)/X.shape[0] + 2*reg*W
+    dW = torch.mm(X.t(),dL_y)/X.shape[0] + 2*reg*W
     
     #############################################################################
     #                             END OF YOUR CODE                              #
@@ -383,7 +384,6 @@ def predict_linear_classifier(W: torch.Tensor, X: torch.Tensor):
     ###########################################################################
     return y_pred
 
-
 def svm_get_search_params():
     """
     Return candidate hyperparameters for the SVM model. You should provide
@@ -403,8 +403,11 @@ def svm_get_search_params():
     # TODO:   add your own hyper parameter lists.                             #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
-    ###########################################################################
+    # 学习率 (lr) 的列表
+    learning_rates = [0.0095, 0.0096, 0.0097, 0.0098, 0.0099, 0.01, 0.011, 0.012]
+    regularization_strengths = [7.788418e-08, 8.765432e-08, 1.234567e-07, 2.345678e-07, 3.456789e-07, 4.567890e-07, 5.678901e-07]
+
+    ##########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
 
@@ -455,7 +458,14 @@ def test_one_param_set(
     # num_iters = 100
 
     # Replace "pass" statement with your code
-    pass
+    X_train, y_train = data_dict['X_train'], data_dict['y_train']
+    X_val, y_val = data_dict['X_val'], data_dict['y_val']
+    loss = cls.train(X_train,y_train,learning_rate=lr,reg=reg,num_iters=100)
+    y_train_pred = cls.predict(X_train)
+    train_acc = torch.mean((y_train_pred == y_train).float())
+    y_val_pred = cls.predict(X_val)
+    val_acc = torch.mean((y_val_pred == y_val).float())
+
     ############################################################################
     #                            END OF YOUR CODE                              #
     ############################################################################
@@ -493,7 +503,7 @@ def softmax_loss_naive(
     # Initialize the loss and gradient to zero.
     loss = 0.0
     dW = torch.zeros_like(W)
-
+    device = W.device
     #############################################################################
     # TODO: Compute the softmax loss and its gradient using explicit loops.     #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
@@ -502,7 +512,30 @@ def softmax_loss_naive(
     # regularization!                                                           #
     #############################################################################
     # Replace "pass" statement with your code
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    for i in range(num_train):
+      scores = W.t().mv(X[i])
+      scores -= torch.max(scores)
+
+      scores = torch.exp(scores)
+      expsum = torch.sum(scores)
+      softmax = scores / expsum
+
+      loss += -torch.log(softmax[y[i]])
+    
+      for j in range (num_classes):
+        if(j==y[i]):
+          dW[:,j] += (softmax[j]-1)*X[i]
+        else:
+          dW[:,j]+= softmax[j]*X[i]
+      
+    loss /=num_train
+    loss += reg*torch.sum(W*W)
+    dW /= num_train
+    dW += 2*reg*W
+
+
     #############################################################################
     #                          END OF YOUR CODE                                 #
     #############################################################################
@@ -523,7 +556,6 @@ def softmax_loss_vectorized(
     # Initialize the loss and gradient to zero.
     loss = 0.0
     dW = torch.zeros_like(W)
-
     #############################################################################
     # TODO: Compute the softmax loss and its gradient using no explicit loops.  #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
@@ -532,7 +564,37 @@ def softmax_loss_vectorized(
     # regularization!                                                           #
     #############################################################################
     # Replace "pass" statement with your code
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    scores = torch.mm(X,W)
+    scores -= torch.max(scores) # the only max num ?
+    # scores -= torch.max(scores,dim = 1,keepdim = True).values
+    pred = torch.exp(scores)/torch.sum(torch.exp(scores),dim=1).view(-1,1)
+
+    loss = -torch.sum(torch.log(pred[torch.arange(num_train),y]))
+    loss /= num_train
+    loss += reg*torch.sum(W*W)
+
+    pred[torch.arange(num_train),y] -=1
+    dW = torch.mm(X.t(),pred)
+    dW += 2*reg*W
+
+
+    '''
+    num_train = X.shape[0]
+    scores = X.mm(W)
+    scores -= torch.max(scores) # numeric stability
+    allexp = torch.exp(scores)
+    sumup = torch.sum(allexp, dim = 1)
+    correct = allexp[torch.arange(num_train), y]
+    prob = correct / sumup # only extract correct label
+    loss = -torch.sum(torch.log(prob))/num_train + reg * torch.sum(W * W)
+  
+    factor = torch.div(allexp, sumup.view(-1, 1))
+    factor[torch.arange(num_train), y] = -1 * (sumup - correct) / sumup # for correct class
+  
+    dW = (X.t()).mm(factor) / num_train + 2 * reg * W
+    '''
     #############################################################################
     #                          END OF YOUR CODE                                 #
     #############################################################################
@@ -553,7 +615,6 @@ def softmax_get_search_params():
     """
     learning_rates = []
     regularization_strengths = []
-
     ###########################################################################
     # TODO: Add your own hyper parameter lists. This should be similar to the #
     # hyperparameters that you used for the SVM, but you may need to select   #
@@ -561,8 +622,9 @@ def softmax_get_search_params():
     # classifier.                                                             #
     ###########################################################################
     # Replace "pass" statement with your code
-    pass
-    ###########################################################################
+    learning_rates = [0.6782e-3,0.687e-3,0.6783e-3,0.678e-3,0.6784e-3]
+    regularization_strengths = [1e-7,5e-6,1e-5,5e-5, 1e-4,5e-4, 1e-3,5e-3,1e-2,5e-2,1e-1,]
+    ##########################################################################
     #                           END OF YOUR CODE                              #
     ###########################################################################
 

@@ -24,12 +24,12 @@ def get_CIFAR10_data(validation_ratio=0.02, flatten=False):
     SVM, but condensed to a single function.
     """
     X_train, y_train, X_test, y_test = eecs598.data.cifar10()
-
-    # load every data on cuda
-    X_train = X_train.cuda()
-    y_train = y_train.cuda()
-    X_test = X_test.cuda()
-    y_test = y_test.cuda()
+    device = torch.device('mps:0')
+    # load every data on mps
+    X_train = X_train.to(device)
+    y_train = y_train.to(device)
+    X_test = X_test.to(device)
+    y_test = y_test.to(device)
 
     # 0. Visualize some examples from the dataset.
     classes = [
