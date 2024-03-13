@@ -41,7 +41,6 @@ class FCOSPredictionNetwork(nn.Module):
                 in each convolution layer of stem layers.
         """
         super().__init__()
-
         ######################################################################
         # TODO: Create a stem of alternating 3x3 convolution layers and RELU
         # activation modules. Note there are two separate stems for class and
@@ -60,8 +59,20 @@ class FCOSPredictionNetwork(nn.Module):
         stem_cls = []
         stem_box = []
         # Replace "pass" statement with your code
-        pass
-
+        in_ch = in_channels
+        for out_channel in stem_channels:
+            conv_cls = nn.Conv2d(in_ch,out_channel,kernel_size=3,stride=1,padding = 1)
+            conv_box = nn.Conv2d(in_ch,out_channel,kernel_size=3,stride=1,padding = 1)
+            nn.init.normal(conv_cls.weight, 0, 0.01)
+            nn.init.normal(conv_box.weight, 0, 0.01)
+            nn.init.constant(conv_box.bias,0)
+            nn.init.constant(conv_cls.bias,0)
+            stem_cls.append(conv_cls)
+            stem_cls.append(nn.ReLU())
+            stem_box.append(conv_box)
+            stem_box.append(nn.ReLU())
+            
+            in_ch = out_channel
         # Wrap the layers defined by student into a `nn.Sequential` module:
         self.stem_cls = nn.Sequential(*stem_cls)
         self.stem_box = nn.Sequential(*stem_box)
@@ -86,9 +97,20 @@ class FCOSPredictionNetwork(nn.Module):
         self.pred_cls = None  # Class prediction conv
         self.pred_box = None  # Box regression conv
         self.pred_ctr = None  # Centerness conv
-
+        
+        self.pred_cls = nn.Conv2d(in_ch, num_classes, kernel_size=3, stride=1, padding=1)
+        nn.init.normal_(self.pred_cls.weight, 0, 0.01)
+        nn.init.constant_(self.pred_cls.bias, 0)
+        
+        self.pred_box = nn.Conv2d(in_ch, 4, kernel_size=3, stride=1, padding=1)
+        nn.init.normal_(self.pred_box.weight, 0, 0.01)
+        nn.init.constant_(self.pred_box.bias, 0)
+        
+        self.pred_ctr = nn.Conv2d(in_ch, 1, kernel_size=3, stride=1, padding=1)
+        nn.init.normal_(self.pred_ctr.weight, 0, 0.01)
+        nn.init.constant_(self.pred_ctr.bias, 0)
         # Replace "pass" statement with your code
-        pass
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################
@@ -133,9 +155,23 @@ class FCOSPredictionNetwork(nn.Module):
         class_logits = {}
         boxreg_deltas = {}
         centerness_logits = {}
-
+        
+        for key, value in feats_per_fpn_level.items(): # {p3:feature tensor,...}
+            three_layers_output = self.pred_cls(self.stem_cls(value))
+            batch_num = three_layers_output.shape[0]
+            num_classes = three_layers_output.shape[1]
+            three_layers_output = three_layers_output.view(batch_num,num_classes,-1)
+            class_logits[key] = three_layers_output.permute(0,2,1)
+            
+            three_layers_output = self.pred_box(self.stem_box(value))
+            three_layers_output = three_layers_output.view(batch_num,4,-1)
+            boxreg_deltas[key] = three_layers_output.permute(0,2,1)
+            
+            three_layers_output = self.pred_ctr(self.stem_box(value))
+            three_layers_output = three_layers_output.view(batch_num,1,-1)
+            centerness_logits[key] = three_layers_output.permute(0,2,1)
         # Replace "pass" statement with your code
-        pass
+        
         ######################################################################
         #                           END OF YOUR CODE                         #
         ######################################################################

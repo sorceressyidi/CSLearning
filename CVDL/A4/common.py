@@ -36,10 +36,8 @@ class DetectorBackboneWithFPN(nn.Module):
     def __init__(self, out_channels: int):
         super().__init__()
         self.out_channels = out_channels
-
         # Initialize with ImageNet pre-trained weights.
         _cnn = models.regnet_x_400mf(pretrained=True)
-
         # Torchvision models only return features from the last level. Detector
         # backbones (with FPN) require intermediate features of different scales.
         # So we wrap the ConvNet with torchvision's feature extractor. Here we
@@ -53,14 +51,12 @@ class DetectorBackboneWithFPN(nn.Module):
                 "trunk_output.block4": "c5",
             },
         )
-
         # Pass a dummy batch of input images to infer shapes of (c3, c4, c5).
         # Features are a dictionary with keys as defined above. Values are
         # batches of tensors in NCHW format, that give intermediate features
         # from the backbone network.
         dummy_out = self.backbone(torch.randn(2, 3, 224, 224))
         dummy_out_shapes = [(key, value.shape) for key, value in dummy_out.items()]
-
         print("For dummy input images with shape: (2, 3, 224, 224)")
         for level_name, feature_shape in dummy_out_shapes:
             print(f"Shape of {level_name} features: {feature_shape}")
@@ -84,7 +80,25 @@ class DetectorBackboneWithFPN(nn.Module):
         self.fpn_params = nn.ModuleDict()
 
         # Replace "pass" statement with your code
-        pass
+        # m3/4/5 for reducing channel dimensions
+        # dummy_out_shapes[0][1][1] the oth picture,the first(not level_name but feature_shape);then the first in shape.
+        # dummy_out_shapes[0][1][1] -- in_channel
+        self.fpn_params['m3'] = nn.Conv2d(dummy_out_shapes[0][1][1], out_channels, 
+                                  kernel_size=1, stride=1, padding=0)
+        self.fpn_params['m4'] = nn.Conv2d(dummy_out_shapes[1][1][1], out_channels, 
+                                  kernel_size=1, stride=1, padding=0)
+        self.fpn_params['m5'] = nn.Conv2d(dummy_out_shapes[2][1][1], out_channels, 
+                                  kernel_size=1, stride=1, padding=0)
+
+        # p3/4/5 generate final feature map, reduce aliasing effect of upsampling
+        self.fpn_params['p3'] = nn.Conv2d(out_channels, out_channels,
+                                  kernel_size=3, stride=1, padding=1)
+        self.fpn_params['p4'] = nn.Conv2d(out_channels, out_channels,
+                                  kernel_size=3, stride=1, padding=1)
+        self.fpn_params['p5'] = nn.Conv2d(out_channels, out_channels,
+                                  kernel_size=3, stride=1, padding=1) 
+        # Replace "pass" statement with your code
+        
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
@@ -109,13 +123,20 @@ class DetectorBackboneWithFPN(nn.Module):
         # (c3, c4, c5) and FPN conv layers created above.                    #
         # HINT: Use `F.interpolate` to upsample FPN features.                #
         ######################################################################
-
         # Replace "pass" statement with your code
-        pass
+        m3 = self.fpn_params['m3'](backbone_feats['c3'])
+        m4 = self.fpn_params['m4'](backbone_feats['c4'])
+        m5 = self.fpn_params['m5'](backbone_feats['c5'])
+        m5_unsampled = F.interpolate(m5, (m4.shape[2], m4.shape[3]), mode='nearest')
+        m4 += m5_unsampled
+        m4_unsampled = F.interpolate(m4, (m3.shape[2], m3.shape[3]), mode='nearest')
+        m3 += m4_unsampled
+        fpn_feats['p3'] = self.fpn_params['p3'](m3)
+        fpn_feats['p4'] = self.fpn_params['p4'](m4)
+        fpn_feats['p5'] = self.fpn_params['p5'](m5)
         ######################################################################
         #                            END OF YOUR CODE                        #
         ######################################################################
-
         return fpn_feats
 
 
@@ -152,12 +173,15 @@ def get_fpn_location_coords(
 
     for level_name, feat_shape in shape_per_fpn_level.items():
         level_stride = strides_per_fpn_level[level_name]
-
         ######################################################################
         # TODO: Implement logic to get location co-ordinates below.          #
         ######################################################################
         # Replace "pass" statement with your code
-        pass
+        H = feat_shape[2]
+        W = feat_shape[3]
+        ygrid, xgrid = torch.meshgrid(torch.arange(H, dtype=dtype, device=device), torch.arange(W, dtype=dtype, device=device), indexing='ij')
+        grid = torch.stack((ygrid, xgrid), dim=-1)
+        location_coords[level_name] = (level_stride * (grid + 0.5)).view(-1,2)
         ######################################################################
         #                             END OF YOUR CODE                       #
         ######################################################################
